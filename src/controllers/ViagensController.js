@@ -8,12 +8,25 @@ const fetch = require("node-fetch"); // Para chamadas API do Expo
 //  credential: admin.credential.cert(require("../../serviceAccountKey.json")),
 //});
 
-const serviceAccount = JSON.parse(Buffer.from(process.env.FIREBASE_CREDENTIALS, "base64").toString("utf8"));
 
-// Inicializar o Firebase Admin SDK
+const serviceAccountBase64 = process.env.FIREBASE_CREDENTIALS;
+if (!serviceAccountBase64) {
+  throw new Error("A variável FIREBASE_CREDENTIALS_BASE64 não está definida!");
+}
+
+const serviceAccount = JSON.parse(Buffer.from(serviceAccountBase64, "base64").toString("utf-8"));
+
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
 });
+
+
+//const serviceAccount = JSON.parse(Buffer.from(process.env.FIREBASE_CREDENTIALS, "base64").toString("utf8"));
+
+// Inicializar o Firebase Admin SDK
+//admin.initializeApp({
+//  credential: admin.credential.cert(serviceAccount),
+//});
 
 module.exports = {
   async index(request, response) {
