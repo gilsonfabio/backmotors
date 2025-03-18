@@ -26,7 +26,7 @@ module.exports = {
 
     async create(request, response) {
         try {
-            const { viaUsrId, viaOriLat, viaOriLon, viaDesLat, viaDesLon, viaDistancia, motorista } = request.body;
+            const { viaUsrId, viaOriLat, viaOriLon, viaOriDesc, viaDesLat, viaDesLon, viaDesDesc, viaDistancia, motorista } = request.body;
 
             console.log("Recebendo requisição:", request.body);
 
@@ -42,8 +42,10 @@ module.exports = {
                 viaUsrId,
                 viaOriLat,
                 viaOriLon,
+                viaOriDesc,
                 viaDesLat,
                 viaDesLon,
+                viaDesDesc,
                 viaDistancia,
                 viaStatus: status,
             });
