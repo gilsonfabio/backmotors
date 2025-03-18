@@ -67,7 +67,7 @@ module.exports = {
 
             // Adicionando dados para abrir a tela de detalhes da viagem
             const notificationData = {
-                screen: "travel",
+                screen: "./travel",
                 param: viaId.toString(), // Certifique-se de que viaId seja uma string
             };
 
