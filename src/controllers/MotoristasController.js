@@ -23,8 +23,8 @@ module.exports = {
         let email = request.body.email;
         let senha = request.body.password;
 
-        console.log('Email:', email);
-        console.log('Password:', senha);
+        //console.log('Email:', email);
+        //console.log('Password:', senha);
 
         const motorista = await connection('motoristas')
             .where('motEmail', email) 
@@ -59,7 +59,7 @@ module.exports = {
         //    expiresIn: '2h'
         //});
         
-        console.log('User data:', usrMot);
+        //console.log('User data:', usrMot);
         
         return response.json(usrMot);
 

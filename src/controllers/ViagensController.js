@@ -69,7 +69,7 @@ module.exports = {
 
             // Adicionando dados para abrir a tela de detalhes da viagem
             const notificationData = {
-                screen: "./travel",
+                screen: "travel",
                 param: viaId.toString(), // Certifique-se de que viaId seja uma string
             };
 
@@ -118,7 +118,7 @@ module.exports = {
     },
 
     async search(request, response) {
-        const id = request.parms.idVia;
+        const id = request.params.idVia;
 
         try {
             const travel = await connection("viagens")
@@ -130,5 +130,22 @@ module.exports = {
         } catch (error) {
             return response.status(500).json({ error: error.message });
         }
+    },
+
+    async aceite(request, response) {        
+        let id = request.body.viaId;
+        let idMot = request.body.motId;
+        let status = '1'
+        console.log('motorista:', request.body.idMot);
+        console.log('viagem:', request.body.viaId);
+
+        const updViagem = await connection('viagens')
+        .where('viaId', id)
+        .update({
+            viaStatus: status, 
+        });
+        
+        return response.status(200).send();
+      
     },
 };

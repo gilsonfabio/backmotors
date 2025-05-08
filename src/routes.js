@@ -11,7 +11,7 @@ const ViagensController = require('./controllers/ViagensController');
 
 routes.get('/', (request, response) => {
     response.json({
-        message: 'Bem-vindo ao servidor Motors 1.00!',
+        message: 'Bem-vindo ao servidor Motors 1.02!',
     });
 });
 
@@ -40,5 +40,6 @@ routes.get('/searchDriver', MotoristasController.searchDriver);
 routes.get('/viagens', ViagensController.index);
 routes.post('/newtravel', ViagensController.create);
 routes.get('/searchTravel/:idVia', ViagensController.search);
-   
+routes.put('/atuAceite', ViagensController.aceite);
+
 module.exports = routes;
