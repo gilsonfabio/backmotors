@@ -40,6 +40,6 @@ routes.get('/searchDriver', MotoristasController.searchDriver);
 routes.get('/viagens', ViagensController.index);
 routes.post('/newtravel', ViagensController.create);
 routes.get('/searchTravel/:idVia', ViagensController.search);
-routes.put('/atuAceite', ViagensController.aceite);
+routes.put('/atuAceite', ViagensController.aceitar);
 
 module.exports = routes;
