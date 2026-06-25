@@ -236,6 +236,22 @@ module.exports = {
 
             let status = "A";
 
+            console.log("DADOS RECEBIDOS:");
+            console.log({
+                viaDatSol: datProcess,
+                viaHorSol: horProcess,
+                viaUsrId,
+                viaOriLat,
+                viaOriLon,
+                viaOriDesc,
+                viaDesLat,
+                viaDesLon,
+                viaDesDesc,
+                viaDistancia,
+                viaValor,
+                viaStatus: status,
+            });
+
             const [viaId] = await connection("viagens").insert({
                 viaDatSol: datProcess,
                 viaHorSol: horProcess,
@@ -250,8 +266,22 @@ module.exports = {
                 viaValor,
                 viaStatus: status,
             });
+
+            return response.status(201).json({
+                success: true,
+                viaId
+            });
+
         } catch (error) {
-            return response.status(500).json({ error: error.message });
+            console.log("ERRO COMPLETO:");
+            console.log(error);
+            if (error.sqlMessage) {
+                console.log("MYSQL:", error.sqlMessage);
+            }
+            return response.status(500).json({
+                error: error.message,
+                sqlMessage: error.sqlMessage || null
+            });
         }
     },
     
