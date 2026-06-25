@@ -10,9 +10,208 @@ if (!serviceAccountBase64) {
 
 const serviceAccount = JSON.parse(Buffer.from(serviceAccountBase64, "base64").toString("utf-8"));
 
-admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-});
+if (!admin.apps.length) {
+    admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+    });
+}
+
+async function enviarNotificacao(
+    motorista,
+    viagemId
+) {
+    const title = "Nova Viagem Solicitada!";
+    const body = "Deseja aceitar esta corrida?";
+
+    const notificationData = {
+        screen: "travel",
+        viagemId: viagemId.toString()
+    };
+
+    const expoPushToken =
+      motorista.mottoken;
+
+    if (
+      expoPushToken &&
+      expoPushToken.startsWith(
+        "ExponentPushToken"
+      )
+    ) {
+
+        await fetch(
+          "https://exp.host/--/api/v2/push/send",
+          {
+            method: "POST",
+            headers: {
+              Accept:
+                "application/json",
+              "Accept-encoding":
+                "gzip, deflate",
+              "Content-Type":
+                "application/json",
+            },
+            body: JSON.stringify({
+              to: expoPushToken,
+              title,
+              body,
+              data: notificationData,
+            }),
+          }
+        );
+
+        return true;
+    }
+
+    if (
+      motorista.motFireToken
+    ) {
+
+        await admin
+          .messaging()
+          .send({
+            token:
+              motorista.motFireToken,
+            notification: {
+              title,
+              body
+            },
+            data:
+              notificationData
+          });
+
+        return true;
+    }
+
+    return false;
+}
+
+async function procurarProximoMotorista( viagemId) {
+        const viagem = await connection("viagens")
+            .where("viaId", viagemId)
+            .first();
+
+        if (!viagem) return;
+
+        const result = await connection.raw(`
+                SELECT
+                    motId,
+                    motNome,
+                    mottoken,
+                    motFireToken,
+                    motLatAtual,
+                    motLonAtual,
+                    (
+                        6371 *
+                        ACOS(
+                            COS(RADIANS(?))
+                            * COS(RADIANS(motLatAtual))
+                            * COS(
+                                RADIANS(motLonAtual)
+                                - RADIANS(?)
+                            )
+                            +
+                            SIN(RADIANS(?))
+                            * SIN(RADIANS(motLatAtual))
+                        )
+                    ) distancia
+                FROM motoristas
+                    WHERE motStatus = 'D'
+                    AND motId NOT IN (
+                        SELECT vmMotoristaId
+                            FROM viagem_motoristas
+                            WHERE vmViagemId = ?
+                        )
+                    ORDER BY distancia
+                    LIMIT 1
+                `, [
+                    viagem.viaOriLat,
+                    viagem.viaOriLon,
+                    viagem.viaOriLat,
+                    viagemId
+                ]);
+
+            const motorista = result[0]?.[0];
+
+            if (!motorista) {
+                await connection("viagens")
+                    .where("viaId", viagemId)
+                    .update({
+                        viaStatus: "S"
+                    });
+                return;
+            }
+
+            await connection(
+                "viagem_motoristas"
+                ).insert({
+                    vmViagemId: viagemId,
+                    vmMotoristaId:
+                    motorista.motId,
+                    vmStatus: "P"
+                });
+
+            await enviarNotificacao(
+                motorista,
+                viagemId
+            );
+
+            iniciarTimeout(
+                viagemId,
+                motorista.motId
+            );
+        } 
+
+function iniciarTimeout(
+    viagemId,
+    motoristaId
+) {
+
+    setTimeout(
+        async () => {
+
+            const convite =
+                await connection(
+                    "viagem_motoristas"
+                )
+                .where({
+                    vmViagemId:
+                        viagemId,
+
+                    vmMotoristaId:
+                        motoristaId
+                })
+                .first();
+
+            if (
+                !convite ||
+                convite.vmStatus !== "P"
+            ) {
+                return;
+            }
+
+            await connection(
+                "viagem_motoristas"
+            )
+            .where({
+                vmViagemId:
+                    viagemId,
+
+                vmMotoristaId:
+                    motoristaId
+            })
+            .update({
+                vmStatus: "E"
+            });
+
+            await procurarProximoMotorista(
+                viagemId
+            );
+
+        },
+
+        15000
+    );
+}
 
 module.exports = {
     async index(request, response) {
@@ -24,9 +223,43 @@ module.exports = {
         }
     },
 
+    
     async create(request, response) {
         try {
-            const { viaUsrId, viaOriLat, viaOriLon, viaOriDesc, viaDesLat, viaDesLon, viaDesDesc, viaDistancia, motorista } = request.body;
+            const { viaUsrId, viaOriLat, viaOriLon, viaOriDesc, viaDesLat, viaDesLon, viaDesDesc, viaDistancia, viaValor } = request.body;
+
+            console.log("Recebendo requisição:", request.body);
+
+            let datAtual = new Date();
+            let datProcess = new Date(datAtual.getFullYear(), datAtual.getMonth(), datAtual.getDate());
+            let horProcess = moment().format("HH:mm:ss");
+
+            let status = "A";
+
+            const [viaId] = await connection("viagens").insert({
+                viaDatSol: datProcess,
+                viaHorSol: horProcess,
+                viaUsrId,
+                viaOriLat,
+                viaOriLon,
+                viaOriDesc,
+                viaDesLat,
+                viaDesLon,
+                viaDesDesc,
+                viaDistancia,
+                viaValor,
+                viaStatus: status,
+            });
+        } catch (error) {
+            return response.status(500).json({ error: error.message });
+        }
+    },
+    
+    
+    /*
+    async create(request, response) {
+        try {
+            const { viaUsrId, viaOriLat, viaOriLon, viaOriDesc, viaDesLat, viaDesLon, viaDesDesc, viaDistancia } = request.body;
 
             console.log("Recebendo requisição:", request.body);
 
@@ -50,71 +283,191 @@ module.exports = {
                 viaStatus: status,
             });
 
-            const driver = await connection("motoristas").where("motId", motorista).select("*").first();
-            if (!driver) {
-                return response.status(404).json({ error: "Motorista não encontrado" });
-            }
+            const result = await connection.raw(`SELECT
+                motId,
+                motNome,
+                mottoken,
+                motFireToken,
+                motLatAtual,
+                motLonAtual,
+                (
+                    6371 *
+                    ACOS(
+                        COS(RADIANS(?))
+                        * COS(RADIANS(motLatAtual))
+                        * COS(
+                            RADIANS(motLonAtual)
+                            - RADIANS(?)
+                        )
+                        +
+                        SIN(RADIANS(?))
+                        * SIN(RADIANS(motLatAtual))
+                    )
+                ) AS distancia
+                    FROM motoristas
+                        WHERE motStatus = 'D'
+                        ORDER BY distancia ASC
+                        LIMIT 20
+                `,
+            [
+                viaOriLat,
+                viaOriLon,
+                viaOriLat
+            ]
+            );
 
-            console.log("Motorista encontrado");
-
-            let expoPushToken = driver.mottoken;
-            if (!expoPushToken) {
-                return response.status(400).json({ error: "Token de notificação não encontrado para o motorista" });
-            }
-
-            console.log("Token recebido:", expoPushToken);
-
-            let title = "Nova Viagem Solicitada!";
-            let body = "Um passageiro solicitou uma viagem. Confira no app!";
-
-            // Adicionando dados para abrir a tela de detalhes da viagem
-            const notificationData = {
-                screen: "travel",
-                param: viaId.toString(), // Certifique-se de que viaId seja uma string
-            };
-
-            if (expoPushToken.startsWith("ExponentPushToken")) {
-                // Enviar notificação via Expo API
-                const expoResponse = await fetch("https://exp.host/--/api/v2/push/send", {
-                    method: "POST",
-                    headers: {
-                        Accept: "application/json",
-                        "Accept-encoding": "gzip, deflate",
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({
-                        to: expoPushToken,
-                        title: title,
-                        body: body,
-                        data: notificationData, // Adicionando os dados aqui
-                    }),
+            const drivers = result[0] || result.rows || [];
+            if (!drivers.length) {
+                await connection("viagens")
+                .where("viaId", viaId)
+                .update({
+                    viaStatus: "SEM_MOTORISTA"
                 });
 
-                const expoData = await expoResponse.json();
-                console.log("Resposta do Expo:", expoData);
-
-                return response.json({ success: true, message: "Notificação enviada via Expo!" });
-            } else {
-                // Enviar via Firebase Cloud Messaging (FCM)
-                const message = {
-                    token: expoPushToken,
-                    notification: { title, body },
-                    data: notificationData, // Adicionando os dados aqui
-                };
-
-                try {
-                    await admin.messaging().send(message);
-                    console.log("Notificação enviada via FCM!");
-                    return response.json({ success: true, message: "Notificação enviada via Firebase!" });
-                } catch (error) {
-                    console.error("Erro ao enviar notificação via Firebase:", error);
-                    return response.status(500).json({ error: "Erro ao enviar notificação via Firebase" });
-                }
+                return response.status(404).json({
+                    error: "Nenhum motorista disponível"
+                });
             }
+
+            const motoristaAtual = drivers[0];
+
+            await connection("viagem_motoristas").insert({
+                vmViagemId: viaId,
+                vmMotoristaId:
+                motoristaAtual.motId,
+                vmStatus: "PENDENTE"
+            });
+
+            await enviarNotificacao(
+                motoristaAtual,
+                viaId
+            );
+
+            return response.json({
+                success: true,
+                viagemId: viaId,
+                motorista: motoristaAtual.motNome
+            });
         } catch (error) {
-            console.error("Erro no servidor:", error);
-            return response.status(500).json({ error: error.message });
+            console.error(error);
+            return response.status(500).json({
+                error: error.message
+            });
+        }      
+    },
+    */
+
+
+    async aceitar(request, response ) {
+        const {
+            viagemId,
+            motoristaId
+        } = request.body;
+
+        await connection("viagens")
+            .where("viaId", viagemId)
+            .update({
+                viaMotId: motoristaId,
+                viaStatus: "ACEITA"
+            });
+
+        await connection("viagem_motoristas")
+            .where({
+                vmViagemId: viagemId,
+                vmMotoristaId: motoristaId
+            })
+            .update({
+                vmStatus: "ACEITO"
+            });
+
+        await connection("motoristas")
+            .where("motId", motoristaId)
+            .update({
+                motStatus: "O"
+            });
+
+        return response.json({success: true });
+    },
+
+    async recusar(request, response ) {
+        const {
+            viagemId,
+            motoristaId
+        } = request.body;
+
+        await connection("viagem_motoristas")
+            .where({
+                vmViagemId: viagemId,
+                vmMotoristaId: motoristaId
+            })
+            .update({
+                vmStatus: "RECUSADO"
+            });
+
+        // Buscar próximo motorista
+
+        const viagem = await connection("viagens")
+            .where("viaId", viagemId)
+            .first();
+
+        const proximos = await connection.raw(`
+            SELECT *
+            FROM motoristas
+            WHERE motStatus = 'D'
+            AND motId NOT IN (
+                SELECT vmMotoristaId
+                FROM viagem_motoristas
+                WHERE vmViagemId = ?
+            )
+            ORDER BY (
+                6371 *
+                ACOS(
+                    COS(RADIANS(?))
+                    * COS(RADIANS(motLatAtual))
+                    * COS(
+                        RADIANS(motLonAtual)
+                        - RADIANS(?)
+                    )
+                    +
+                    SIN(RADIANS(?))
+                    * SIN(RADIANS(motLatAtual))
+                )
+            )
+            LIMIT 1
+                `, [
+                viagemId,
+                viagem.viaOriLat,
+                viagem.viaOriLon,
+                viagem.viaOriLat
+            ]);
+
+        const motorista = proximos[0]?.[0];
+        if (!motorista) {
+            await connection("viagens")
+                .where("viaId", viagemId)
+                .update({
+                    viaStatus: "SEM_MOTORISTA"
+                });
+
+            return response.json({
+                success: false
+            });
         }
+
+        await connection("viagem_motoristas").insert({
+            vmViagemId: viagemId,
+            vmMotoristaId: motorista.motId,
+            vmStatus: "PENDENTE"
+        });
+
+        await enviarNotificacao(
+            motorista,
+            viagemId
+        );
+
+        return response.json({
+            success: true
+        });
     },
 
     async search(request, response) {
@@ -130,22 +483,5 @@ module.exports = {
         } catch (error) {
             return response.status(500).json({ error: error.message });
         }
-    },
-
-    async aceite(request, response) {        
-        let id = request.body.viaId;
-        let idMot = request.body.motId;
-        let status = '1'
-        console.log('motorista:', request.body.idMot);
-        console.log('viagem:', request.body.viaId);
-
-        const updViagem = await connection('viagens')
-        .where('viaId', id)
-        .update({
-            viaStatus: status, 
-        });
-        
-        return response.status(200).send();
-      
     },
 };

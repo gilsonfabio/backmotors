@@ -71,7 +71,7 @@ module.exports = {
     },
 
     async atuToken(request, response) {        
-        let idUser = request.body.usrId;
+        let idUser = request.body.id;
         let token = request.body.usrToken;
 
         console.log('usuarios:', request.body.usrId);
