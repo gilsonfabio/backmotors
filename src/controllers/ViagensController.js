@@ -290,7 +290,7 @@ module.exports = {
                     )
                 ) AS distancia
                     FROM motoristas
-                        WHERE motStatus = 'D'
+                        WHERE motStatus = 'A'
                         ORDER BY distancia ASC
                         LIMIT 20
                 `,
