@@ -1,7 +1,7 @@
 const connection = require("../database/connection");
-const moment = require("moment");
 const admin = require("firebase-admin");
 const fetch = require("node-fetch");
+const moment = require("moment-timezone");
 
 const serviceAccountBase64 = process.env.FIREBASE_CREDENTIALS;
 if (!serviceAccountBase64) {
@@ -232,9 +232,11 @@ module.exports = {
             //let datAtual = new Date();
             //let datProcess = new Date(datAtual.getFullYear(), datAtual.getMonth(), datAtual.getDate());
             //let horProcess = moment().format("HH:mm:ss");
-
-            const datProcess = moment().format("YYYY-MM-DD");
-            const horProcess = moment().format("HH:mm:ss");
+            
+            const agora = moment().tz("America/Sao_Paulo");
+            const datProcess = agora.format("YYYY-MM-DD");
+            const horProcess = agora.format("HH:mm:ss");
+               
             let status = "A";
 
             console.log("DADOS RECEBIDOS:");
