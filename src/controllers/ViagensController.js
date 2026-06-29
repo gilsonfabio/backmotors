@@ -223,17 +223,18 @@ module.exports = {
         }
     },
 
-    
     async create(request, response) {
         try {
             const { viaUsrId, viaOriLat, viaOriLon, viaOriDesc, viaDesLat, viaDesLon, viaDesDesc, viaDistancia, viaValor } = request.body;
 
             console.log("Recebendo requisição:", request.body);
 
-            let datAtual = new Date();
-            let datProcess = new Date(datAtual.getFullYear(), datAtual.getMonth(), datAtual.getDate());
-            let horProcess = moment().format("HH:mm:ss");
+            //let datAtual = new Date();
+            //let datProcess = new Date(datAtual.getFullYear(), datAtual.getMonth(), datAtual.getDate());
+            //let horProcess = moment().format("HH:mm:ss");
 
+            const datProcess = moment().format("YYYY-MM-DD");
+            const horProcess = moment().format("HH:mm:ss");
             let status = "A";
 
             console.log("DADOS RECEBIDOS:");
@@ -264,52 +265,6 @@ module.exports = {
                 viaDesDesc,
                 viaDistancia,
                 viaValor,
-                viaStatus: status,
-            });
-
-            return response.status(201).json({
-                success: true,
-                viaId
-            });
-
-        } catch (error) {
-            console.log("ERRO COMPLETO:");
-            console.log(error);
-            if (error.sqlMessage) {
-                console.log("MYSQL:", error.sqlMessage);
-            }
-            return response.status(500).json({
-                error: error.message,
-                sqlMessage: error.sqlMessage || null
-            });
-        }
-    },
-    
-    
-    /*
-    async create(request, response) {
-        try {
-            const { viaUsrId, viaOriLat, viaOriLon, viaOriDesc, viaDesLat, viaDesLon, viaDesDesc, viaDistancia } = request.body;
-
-            console.log("Recebendo requisição:", request.body);
-
-            let datAtual = new Date();
-            let datProcess = new Date(datAtual.getFullYear(), datAtual.getMonth(), datAtual.getDate());
-            let horProcess = moment().format("HH:mm:ss");
-
-            let status = "A";
-
-            const [viaId] = await connection("viagens").insert({
-                viaDatSol: datProcess,
-                viaHorSol: horProcess,
-                viaUsrId,
-                viaOriLat,
-                viaOriLon,
-                viaOriDesc,
-                viaDesLat,
-                viaDesLon,
-                viaDesDesc,
-                viaDistancia,
                 viaStatus: status,
             });
 
@@ -385,9 +340,7 @@ module.exports = {
             });
         }      
     },
-    */
-
-
+    
     async aceitar(request, response ) {
         const {
             viagemId,
